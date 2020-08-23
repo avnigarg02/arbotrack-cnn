@@ -1,9 +1,11 @@
 # imports
 from keras.models import load_model
 from keras.preprocessing import image
-from keras import backend as K
+from PIL import Image
+import requests
 from flask import Flask, jsonify, request
 import numpy as np
+from io import BytesIO
 
 # Initialize model and flask application
 app = Flask(__name__)
@@ -11,21 +13,20 @@ model = None
 
 
 # Define 'prepare image' function to convert image to array
-def prep_img(image_path):
+def prep_img(image_url):
     # Initialize size of image for testing
     img_rows, img_cols = 474, 355
+    input_shape = [img_cols, img_rows]
 
-    # Change the input shape based on backend
-    if K.image_data_format() == 'channels_first':
-        input_shape = (3, img_rows, img_cols)
-    else:
-        input_shape = (img_rows, img_cols, 3)
+    # Get test image from url
+    image_from_url = requests.get(image_url).content
 
-    # Get load test image from url
-    test_image = image.load_img(image_path, target_size=input_shape)
+    # Load test image from url
+    img = Image.open(BytesIO(image_from_url))
+    test_image_raw = img.resize(input_shape)
 
     # Convert image to array
-    image_array = image.img_to_array(test_image)
+    image_array = image.img_to_array(test_image_raw)
     image_array = image_array / 255
     test_image = np.array([image_array])
 
@@ -49,11 +50,10 @@ def predict():
 
     # Read image path name
     request_data = str(request.data)
-    image_path = '/Users/avni/OneDrive - Loudoun County Public Schools/AVNI/Machine Learning/image_data/test_images/' \
-                 + request_data[2:-1]
+    image_url = request_data[2:-1]
 
     # Prepare image
-    image = prep_img(image_path)
+    image = prep_img(image_url)
 
     # Get prediction
     preds = get_pred(model, image)
